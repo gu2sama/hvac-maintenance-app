@@ -1,0 +1,2205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>空調冷凍設備メンテナンス補助アプリ</title>
+  <style>
+    :root {
+      --primary: #0057A8;
+      --primary-dark: #003d7a;
+      --danger: #D32F2F;
+      --warning: #F57C00;
+      --success: #2E7D32;
+      --bg: #F0F4F8;
+      --card: #FFFFFF;
+      --text: #1A2733;
+      --muted: #607080;
+      --border: #C8D6E0;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--primary);
+      color: white;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    header h1 { font-size: 17px; font-weight: 700; line-height: 1.3; }
+    header .badge {
+      font-size: 10px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin-top: 2px;
+      display: inline-block;
+    }
+
+    nav {
+      display: flex;
+      background: white;
+      border-bottom: 2px solid var(--border);
+      overflow-x: auto;
+    }
+    nav button {
+      flex: 1;
+      min-width: 80px;
+      padding: 12px 8px;
+      border: none;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    nav button.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    main { padding: 16px; max-width: 680px; margin: 0 auto; }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 14px;
+    }
+
+    label { font-size: 14px; font-weight: 600; display: block; margin-bottom: 6px; }
+
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 16px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: white;
+      color: var(--text);
+      margin-bottom: 16px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    select:focus, input:focus { outline: none; border-color: var(--primary); }
+
+    .input-row { display: flex; gap: 12px; }
+    .input-row > div { flex: 1; }
+
+    .unit-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: -12px;
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 16px;
+      font-size: 17px;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:active { background: var(--primary-dark); transform: scale(0.98); }
+    .btn-secondary {
+      background: white;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+      font-size: 14px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+    .btn-sm {
+      width: auto;
+      padding: 8px 16px;
+      font-size: 13px;
+      border-radius: 8px;
+    }
+
+    /* 診断結果 */
+    .result-box {
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .result-box.normal { background: #E8F5E9; border: 2px solid var(--success); }
+    .result-box.low    { background: #FFF3E0; border: 2px solid var(--warning); }
+    .result-box.high   { background: #FFEBEE; border: 2px solid var(--danger); }
+    .result-box.vacuum { background: #F3E5F5; border: 2px solid #7B1FA2; }
+
+    .result-status {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .result-box.normal .result-status { color: var(--success); }
+    .result-box.low    .result-status { color: var(--warning); }
+    .result-box.high   .result-status { color: var(--danger); }
+    .result-box.vacuum .result-status { color: #7B1FA2; }
+
+    .result-detail { font-size: 14px; line-height: 1.7; }
+    .result-detail strong { font-weight: 700; }
+
+    /* 数値グリッド */
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .metric-box {
+      background: #F5F8FA;
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+    .metric-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .metric-value { font-size: 22px; font-weight: 800; color: var(--primary); }
+    .metric-unit  { font-size: 11px; color: var(--muted); }
+
+    /* トラブルシューティング */
+    .checklist { list-style: none; }
+    .checklist li {
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .checklist li:hover { border-color: var(--primary); }
+    .checklist li.checked { background: #E3F2FD; border-color: var(--primary); }
+    .checklist li input[type="checkbox"] {
+      width: 20px; height: 20px; min-width: 20px;
+      margin: 2px 0 0 0;
+      cursor: pointer;
+      accent-color: var(--primary);
+    }
+    .checklist li .item-text { font-size: 14px; }
+    .checklist li .item-cause {
+      font-size: 12px;
+      color: var(--warning);
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    /* ===== PTチャート ===== */
+    .pt-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .pt-table th {
+      background: var(--primary);
+      color: white;
+      padding: 10px 8px;
+      text-align: center;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+    }
+    .pt-table td {
+      padding: 10px 8px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .pt-table tr:nth-child(even) td { background: #F5F8FA; }
+    .pt-table tr.highlight td { background: #FFF9C4 !important; font-weight: 700; }
+    .pt-table td.vacuum-row { color: #7B1FA2; font-weight: 700; }
+
+    /* シナリオタブ */
+    .scenario-tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      margin: 14px 0 0;
+    }
+    .scenario-tab {
+      flex-shrink: 0;
+      padding: 8px 14px;
+      border-radius: 20px;
+      border: 2px solid var(--border);
+      background: white;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .scenario-tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .scenario-panel { display: none; margin-top: 16px; }
+    .scenario-panel.active { display: block; }
+
+    .flow-steps { display: flex; flex-direction: column; gap: 0; }
+    .flow-step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      position: relative;
+    }
+    .flow-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 13px;
+      top: 28px;
+      bottom: -12px;
+      width: 2px;
+      background: var(--border);
+    }
+    .step-num {
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font-size: 13px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+    .step-body {
+      padding: 4px 0 18px;
+      font-size: 13px;
+      line-height: 1.7;
+      flex: 1;
+    }
+    .step-body strong { color: var(--text); }
+    .step-eg {
+      display: inline-block;
+      margin-top: 4px;
+      background: #F0F4F8;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      font-family: monospace;
+    }
+    .step-eg b { color: var(--primary); }
+
+    /* 双方向コンバーター */
+    .conv-ref-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .conv-ref-row label { margin: 0; white-space: nowrap; font-size: 13px; }
+    .conv-ref-row select { flex: 1; margin: 0; padding: 10px 12px; font-size: 14px; }
+
+    .conv-twin {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .conv-col {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid var(--border);
+    }
+    .conv-col-head {
+      padding: 10px 12px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-align: center;
+    }
+    .conv-col.temp-to-pres .conv-col-head { background: #EFF6FF; color: #1D4ED8; }
+    .conv-col.pres-to-temp .conv-col-head { background: #FFF7ED; color: #C2410C; }
+    .conv-col-body { padding: 12px; }
+
+    .conv-col input {
+      margin-bottom: 8px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 700;
+      padding: 12px 8px;
+    }
+    .conv-col.temp-to-pres input:focus { border-color: #3B82F6; }
+    .conv-col.pres-to-temp input:focus { border-color: #F97316; }
+
+    .conv-result-box {
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+      min-height: 58px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .conv-col.temp-to-pres .conv-result-box { background: #EFF6FF; }
+    .conv-col.pres-to-temp .conv-result-box { background: #FFF7ED; }
+
+    .conv-result-main { font-size: 18px; font-weight: 800; }
+    .conv-col.temp-to-pres .conv-result-main { color: #1D4ED8; }
+    .conv-col.pres-to-temp .conv-result-main { color: #C2410C; }
+    .conv-result-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .conv-result-empty { font-size: 22px; color: var(--border); }
+
+    .conv-arrow-center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+      align-items: flex-end;
+    }
+    .search-row > div { flex: 1; }
+    .search-row label { margin-bottom: 6px; }
+    .search-row input { margin-bottom: 0; }
+
+    /* セクション表示/非表示 */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* アラートバナー */
+    .alert-banner {
+      background: #4A148C;
+      color: white;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .alert-icon { font-size: 20px; }
+
+    /* 省エネアドバイス */
+    .advice-box {
+      background: #E8F5E9;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      border-left: 4px solid var(--success);
+    }
+
+    /* 任意入力セクション */
+    .optional-section {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .optional-toggle {
+      width: 100%;
+      padding: 13px 16px;
+      background: #F5F8FA;
+      border: none;
+      text-align: left;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--primary);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .optional-toggle .arrow { transition: transform 0.2s; font-size: 12px; }
+    .optional-toggle.open .arrow { transform: rotate(180deg); }
+    .optional-body { padding: 16px 16px 0; display: none; }
+    .optional-body.open { display: block; }
+
+    .badge-optional {
+      font-size: 10px;
+      background: #E3F2FD;
+      color: var(--primary);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-weight: 700;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    /* SH/SC メトリクス */
+    .metric-box.sh-normal  { background: #E8F5E9; }
+    .metric-box.sh-warn    { background: #FFF3E0; }
+    .metric-box.sh-alarm   { background: #FFEBEE; }
+    .metric-box.sh-normal .metric-value { color: var(--success); }
+    .metric-box.sh-warn    .metric-value { color: var(--warning); }
+    .metric-box.sh-alarm   .metric-value { color: var(--danger); }
+
+    .sh-note {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .sh-note.warn  { color: var(--warning); font-weight: 700; }
+    .sh-note.alarm { color: var(--danger);  font-weight: 700; }
+
+    .section-divider {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      margin: 4px 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hidden { display: none; }
+
+    /* ===== ツールチップ ===== */
+    .tip-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      margin-left: 6px;
+      vertical-align: middle;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .tip-btn:active { opacity: 0.8; }
+
+    /* オーバーレイ */
+    .tip-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 2000;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .tip-overlay.hidden { display: none; }
+
+    /* モーダル本体（ボトムシート） */
+    .tip-modal {
+      background: white;
+      border-radius: 20px 20px 0 0;
+      padding: 12px 20px 36px;
+      width: 100%;
+      max-width: 680px;
+      max-height: 82vh;
+      overflow-y: auto;
+      animation: slideUp 0.22s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(60px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    .tip-handle {
+      width: 40px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+    .tip-modal-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    /* モーダル内コンテンツ */
+    .tip-section { margin-bottom: 16px; }
+    .tip-section-head {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+    .tip-section p {
+      font-size: 14px;
+      line-height: 1.75;
+      color: var(--text);
+    }
+    .tip-spot {
+      background: #EFF6FF;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.7;
+      border-left: 3px solid var(--primary);
+      margin-top: 6px;
+    }
+    .tip-warn {
+      background: #FFF3E0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      line-height: 1.7;
+      border-left: 3px solid var(--warning);
+      margin-top: 8px;
+    }
+    .tip-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin: 2px 2px 6px 0;
+    }
+    .tip-tag.blue  { background: #DBEAFE; color: #1D4ED8; }
+    .tip-tag.green { background: #D1FAE5; color: #065F46; }
+    .tip-tag.red   { background: #FEE2E2; color: #991B1B; }
+    .tip-tag.gray  { background: #F3F4F6; color: #374151; }
+
+    .tip-close-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    /* ===== 電気系 ===== */
+    .elec-sub-head {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 14px 0 12px;
+      margin-top: 4px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* 負荷率バー */
+    .load-bar-wrap {
+      background: #E5E7EB;
+      border-radius: 8px;
+      height: 14px;
+      overflow: hidden;
+      margin: 8px 0 4px;
+      position: relative;
+    }
+    .load-bar-fill {
+      height: 100%;
+      border-radius: 8px;
+      transition: width 0.6s cubic-bezier(.4,0,.2,1);
+    }
+    .load-bar-fill.normal { background: var(--success); }
+    .load-bar-fill.warn   { background: var(--warning); }
+    .load-bar-fill.alarm  { background: var(--danger); }
+    /* 100%マーカー */
+    .load-bar-wrap::after {
+      content: '';
+      position: absolute;
+      top: 0; bottom: 0;
+      left: calc(100% * 100 / 130);
+      width: 2px;
+      background: rgba(0,0,0,0.25);
+    }
+    .load-bar-ticks {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    /* 電気料金 */
+    .cost-box {
+      background: #F0FDF4;
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+    .cost-box .metric-value { color: #1a6830; }
+
+    /* 統合診断ボックス */
+    .integrated-box {
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 14px;
+      line-height: 1.75;
+      margin-bottom: 12px;
+    }
+    .integrated-box.ok      { background: #E8F5E9; border-left: 4px solid var(--success); }
+    .integrated-box.caution { background: #FFF3E0; border-left: 4px solid var(--warning); }
+    .integrated-box.alert   { background: #FFEBEE; border-left: 4px solid var(--danger); }
+
+    /* 省エネ試算ボックス */
+    .saving-box {
+      background: #EFF6FF;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 13px;
+      line-height: 1.7;
+      border-left: 4px solid var(--primary);
+      margin-top: 10px;
+    }
+    .saving-box strong { color: var(--primary); }
+
+    /* 入力行（select + input 横並び）*/
+    .inline-row { display: flex; gap: 8px; align-items: flex-start; }
+    .inline-row input  { flex: 1; margin-bottom: 0; }
+    .inline-row select { width: 110px; margin-bottom: 16px; padding: 14px 8px; }
+
+    @media (min-width: 480px) {
+      header h1 { font-size: 19px; }
+      nav button { font-size: 13px; padding: 14px 12px; }
+      .tip-overlay { align-items: center; padding: 20px; }
+      .tip-modal { border-radius: 16px; max-height: 88vh; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>空調冷凍設備<br>メンテナンス補助アプリ</h1>
+    <span class="badge">プロトタイプ v0.3 — R404A / R134a</span>
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="showTab('diag')">🔍 基本診断</button>
+  <button onclick="showTab('trouble')">🛠 トラブル</button>
+  <button onclick="showTab('pt')">📊 PTチャート</button>
+</nav>
+
+<main>
+
+  <!-- ===== 基本診断タブ ===== -->
+  <div id="tab-diag" class="tab-content active">
+
+    <div class="card">
+      <div class="card-title">機器・冷媒設定</div>
+
+      <label>機器種別 <button class="tip-btn" onclick="openTip('equipType')" type="button">?</button></label>
+      <select id="equipType">
+        <option value="refrig">業務用冷蔵庫</option>
+        <option value="freezer">業務用冷凍庫</option>
+        <option value="showcase">冷蔵ショーケース</option>
+        <option value="freezecase">冷凍ショーケース</option>
+        <option value="icemaker">製氷機</option>
+      </select>
+
+      <label>冷媒 <button class="tip-btn" onclick="openTip('refrigerant')" type="button">?</button></label>
+      <select id="refrigerant">
+        <option value="R404A">R404A（冷凍・冷蔵設備）</option>
+        <option value="R134a">R134a（冷蔵庫・ショーケース）</option>
+      </select>
+
+      <label>TD（伝熱温度差）<button class="tip-btn" onclick="openTip('td')" type="button">?</button></label>
+      <select id="tdValue">
+        <option value="5">5℃（標準・新しい設備）</option>
+        <option value="7" selected>7℃（標準・一般設備）</option>
+        <option value="10">10℃（余裕あり・古い設備）</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="card-title">測定データ入力</div>
+
+      <label>目標（設定）庫内温度 <button class="tip-btn" onclick="openTip('targetTemp')" type="button">?</button></label>
+      <input type="number" id="targetTemp" value="-20" step="1" min="-40" max="15" />
+      <div class="unit-label">単位：℃</div>
+
+      <label>実測圧力（低圧側ゲージ圧）<button class="tip-btn" onclick="openTip('lowPres')" type="button">?</button></label>
+      <input type="number" id="measuredPressure" value="0.18" step="0.01" min="-0.1" max="4.0" />
+      <div class="unit-label">単位：MPa（ゲージ圧）</div>
+
+      <!-- 任意入力 -->
+      <div class="optional-section">
+        <button class="optional-toggle" type="button" onclick="toggleOptional(this)">
+          <span>精度向上オプション（任意）</span>
+          <span class="arrow">▼</span>
+        </button>
+        <div class="optional-body" id="optionalBody">
+          <label>高圧側ゲージ圧 <span class="badge-optional">任意</span> <button class="tip-btn" onclick="openTip('highPres')" type="button">?</button></label>
+          <input type="number" id="highPressure" placeholder="例：1.42（未入力でも診断可）" step="0.01" min="0" max="5.0" />
+          <div class="unit-label" style="margin-top:-12px;">単位：MPa（ゲージ圧）— 入力で凝縮温度・高圧診断が追加されます</div>
+
+          <label>吸入管温度 <span class="badge-optional">任意</span> <button class="tip-btn" onclick="openTip('suctionTemp')" type="button">?</button></label>
+          <input type="number" id="suctionTemp" placeholder="例：-10（未入力でも診断可）" step="0.5" min="-40" max="50" />
+          <div class="unit-label" style="margin-top:-12px;">単位：℃ — 低圧と組み合わせて過熱度（SH）を計算します</div>
+
+          <label>液管温度 <span class="badge-optional">任意</span> <button class="tip-btn" onclick="openTip('liquidTemp')" type="button">?</button></label>
+          <input type="number" id="liquidTemp" placeholder="例：25（未入力でも診断可）" step="0.5" min="-10" max="60" />
+          <div class="unit-label" style="margin-top:-12px;">単位：℃ — 高圧と組み合わせて過冷却度（SC）を計算します</div>
+
+          <!-- 電気系サブセクション -->
+          <div class="elec-sub-head">⚡ 電気系測定値</div>
+
+          <label>電源種別 <button class="tip-btn" onclick="openTip('powerType')" type="button">?</button></label>
+          <select id="powerType">
+            <option value="single100">単相 100V</option>
+            <option value="single200" selected>単相 200V</option>
+            <option value="three200">三相 200V</option>
+          </select>
+
+          <label>定格電流（銘板値）<span class="badge-optional">任意</span> <button class="tip-btn" onclick="openTip('ratedCurrent')" type="button">?</button></label>
+          <input type="number" id="ratedCurrent" placeholder="例：8.5（未入力でも続行）" step="0.1" min="0" />
+          <div class="unit-label" style="margin-top:-12px;">単位：A（アンペア）</div>
+
+          <label>実測電流（クランプメーター値）<span class="badge-optional">任意</span> <button class="tip-btn" onclick="openTip('actualCurrent')" type="button">?</button></label>
+          <input type="number" id="actualCurrent" placeholder="例：7.2（未入力でも続行）" step="0.1" min="0" />
+          <div class="unit-label" style="margin-top:-12px;">単位：A — 入力で負荷率・推定消費電力を計算します</div>
+
+          <label>圧縮機定格出力 <span class="badge-optional">任意</span> <button class="tip-btn" onclick="openTip('compOutput')" type="button">?</button></label>
+          <div class="inline-row">
+            <input type="number" id="compOutput" placeholder="例：1.5" step="0.1" min="0" />
+            <select id="compOutputUnit">
+              <option value="kW">kW</option>
+              <option value="HP">HP（馬力）</option>
+            </select>
+          </div>
+          <div class="unit-label" style="margin-top:-12px;">銘板の「出力」「Output」欄の値</div>
+
+          <label>1日あたりの運転時間 <span class="badge-optional">任意</span> <button class="tip-btn" onclick="openTip('operatingHours')" type="button">?</button></label>
+          <input type="number" id="operatingHours" placeholder="例：16" step="0.5" min="0" max="24" />
+          <div class="unit-label" style="margin-top:-12px;">単位：時間/日 — 電気料金の計算に使用します</div>
+
+          <label>電気料金単価 <button class="tip-btn" onclick="openTip('electricRate')" type="button">?</button></label>
+          <input type="number" id="electricRate" value="30" step="1" min="1" max="100" />
+          <div class="unit-label" style="margin-top:-12px;">単位：円/kWh（デフォルト：30円）</div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="runDiagnosis()">診断を実行する</button>
+    </div>
+
+    <!-- 結果エリア -->
+    <div id="resultArea" class="hidden">
+
+      <div id="vacuumAlert" class="alert-banner hidden">
+        <span class="alert-icon">⚠️</span>
+        <div>
+          <div>真空運転（負圧）アラート</div>
+          <div style="font-size:12px;font-weight:400;margin-top:4px;">
+            蒸発温度が −26℃以下（負圧）を検知しました。大気中の水分が冷媒回路に侵入する危険な状態です。即時点検してください。
+          </div>
+        </div>
+      </div>
+
+      <div id="resultBox" class="result-box">
+        <div id="resultStatus" class="result-status"></div>
+        <div id="resultDetail" class="result-detail"></div>
+      </div>
+
+      <!-- 低圧側メトリクス -->
+      <div class="section-divider">低圧側（蒸発）</div>
+      <div class="metrics">
+        <div class="metric-box">
+          <div class="metric-label">適正蒸発温度</div>
+          <div class="metric-value" id="calcEvapTemp">—</div>
+          <div class="metric-unit">℃</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">適正圧力範囲</div>
+          <div class="metric-value" id="calcPressureRange" style="font-size:15px;padding-top:4px;">—</div>
+          <div class="metric-unit">MPa (ゲージ)</div>
+        </div>
+      </div>
+
+      <!-- 高圧側メトリクス（高圧入力時のみ表示） -->
+      <div id="highSideSection" class="hidden">
+        <div class="section-divider">高圧側（凝縮）</div>
+        <div id="highSideResultBox" class="result-box" style="margin-bottom:12px;">
+          <div id="highSideStatus" class="result-status" style="font-size:16px;"></div>
+          <div id="highSideDetail" class="result-detail"></div>
+        </div>
+        <div class="metrics">
+          <div class="metric-box">
+            <div class="metric-label">実測凝縮温度</div>
+            <div class="metric-value" id="calcCondTemp">—</div>
+            <div class="metric-unit">℃</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">高圧側圧力</div>
+            <div class="metric-value" id="displayHighPres">—</div>
+            <div class="metric-unit">MPa (ゲージ)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SH/SC メトリクス（温度入力時のみ表示） -->
+      <div id="shscSection" class="hidden">
+        <div class="section-divider">過熱度 / 過冷却度</div>
+        <div class="metrics" id="shscMetrics"></div>
+        <div id="shscAdvice"></div>
+      </div>
+
+      <!-- 電気系 / 電気料金（電気系データ入力時のみ表示） -->
+      <div id="electricSection" class="hidden">
+        <div class="section-divider">⚡ 電気系 / 電気料金</div>
+        <div id="loadRatioArea"></div>
+        <div id="costArea"></div>
+        <div id="integratedArea"></div>
+      </div>
+
+      <div id="adviceArea"></div>
+
+      <button class="btn btn-secondary" onclick="showTab('trouble')" id="troubleBtn">
+        🛠 トラブルシューティングへ
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== トラブルシューティングタブ ===== -->
+  <div id="tab-trouble" class="tab-content">
+    <div id="troubleContent">
+      <div class="card">
+        <p style="color:var(--muted);font-size:14px;text-align:center;padding:20px 0;">
+          まず「基本診断」を実行してください。<br>異常が検出された場合にチェックリストが表示されます。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PTチャートタブ ===== -->
+  <div id="tab-pt" class="tab-content">
+
+    <!-- ① 説明カード -->
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div style="font-size:36px;line-height:1;flex-shrink:0;">📊</div>
+        <div>
+          <div style="font-size:16px;font-weight:800;">PTチャートとは？</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">冷媒の圧力(P)と温度(T)の対応表</div>
+        </div>
+      </div>
+
+      <p style="font-size:14px;line-height:1.8;">
+        冷媒が<strong>液とガスの混合状態（飽和状態）</strong>にあるとき、
+        圧力が決まれば温度も一意に決まります。この関係を表にしたのが PTチャートです。<br>
+        マニホールドゲージで読んだ圧力値を使って、<strong>冷媒が今どんな温度状態にあるか</strong>を瞬時に特定できます。
+      </p>
+
+      <!-- シナリオタブ -->
+      <div class="scenario-tabs">
+        <button class="scenario-tab active" onclick="showScenario(0)">🔵 ゲージから温度を読む</button>
+        <button class="scenario-tab"        onclick="showScenario(1)">🎯 適正圧力を求める</button>
+        <button class="scenario-tab"        onclick="showScenario(2)">🌡 SH・SCを計算する</button>
+      </div>
+
+      <!-- シナリオ 0: ゲージから温度を読む -->
+      <div class="scenario-panel active" id="sp0">
+        <div class="flow-steps">
+          <div class="flow-step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              マニホールドゲージの<strong>青いゲージ（Lo側）</strong>の数値を読む
+              <div><span class="step-eg">例）針が <b>0.20 MPa</b> を指している</span></div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              下の「<strong>圧力→温度</strong>」コンバーターに冷媒と圧力を入力する
+              <div><span class="step-eg">R404A ／ 0.20 MPa → <b>約 −20℃</b></span></div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              この温度 ＝ 蒸発器内の<strong>冷媒蒸発温度</strong>
+              <div><span class="step-eg">庫内 −13℃ ／ 蒸発 −20℃ → TD＝7℃（正常）</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="background:#EFF6FF;border-radius:10px;padding:12px 14px;font-size:13px;color:#1D4ED8;margin-top:4px;">
+          💡 「低圧が低い＝蒸発温度が低い＝冷えすぎ・異常」という関係で異常を判断します。
+        </div>
+      </div>
+
+      <!-- シナリオ 1: 適正圧力を求める -->
+      <div class="scenario-panel" id="sp1">
+        <div class="flow-steps">
+          <div class="flow-step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              機器の<strong>目標庫内温度</strong>と<strong>TD（伝熱温度差）</strong>から適正蒸発温度を求める
+              <div><span class="step-eg">庫内目標 −25℃ ／ TD＝7℃ → 蒸発温度 <b>−32℃</b></span></div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              下の「<strong>温度→圧力</strong>」コンバーターで適正圧力を確認
+              <div><span class="step-eg">R404A ／ −32℃ → <b>0.063 MPa</b></span></div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              実測の低圧と比較して<strong>正常か異常かを判定</strong>
+              <div><span class="step-eg">実測 0.04 MPa ＜ 適正 0.063 MPa → <b>低圧低下（異常）</b></span></div>
+            </div>
+          </div>
+        </div>
+        <div style="background:#FFF7ED;border-radius:10px;padding:12px 14px;font-size:13px;color:#C2410C;margin-top:4px;">
+          💡 基本診断タブの「診断を実行する」を使えばこの計算は自動で行われます。
+        </div>
+      </div>
+
+      <!-- シナリオ 2: SH/SC を計算する -->
+      <div class="scenario-panel" id="sp2">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div style="background:#F0FDF4;border-radius:10px;padding:12px;font-size:12px;line-height:1.7;">
+            <div style="font-weight:800;color:var(--success);margin-bottom:6px;">過熱度（SH）</div>
+            <div style="color:var(--muted);">低圧側</div>
+            <div>低圧 → <strong>飽和蒸発温度</strong> を求める</div>
+            <div style="margin-top:4px;color:var(--muted);">SH ＝ 吸入管温度 − 飽和蒸発温度</div>
+            <div style="margin-top:6px;font-family:monospace;background:white;border-radius:6px;padding:4px 8px;">
+              −8℃ − (−20℃) ＝ <b style="color:var(--success)">10℃</b> ✅
+            </div>
+          </div>
+          <div style="background:#F0FDF4;border-radius:10px;padding:12px;font-size:12px;line-height:1.7;">
+            <div style="font-weight:800;color:var(--success);margin-bottom:6px;">過冷却度（SC）</div>
+            <div style="color:var(--muted);">高圧側</div>
+            <div>高圧 → <strong>飽和凝縮温度</strong> を求める</div>
+            <div style="margin-top:4px;color:var(--muted);">SC ＝ 飽和凝縮温度 − 液管温度</div>
+            <div style="margin-top:6px;font-family:monospace;background:white;border-radius:6px;padding:4px 8px;">
+              35℃ − 28℃ ＝ <b style="color:var(--success)">7℃</b> ✅
+            </div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.7;">
+          適正値：SH＝5〜15℃ ／ SC＝5〜10℃。範囲外の場合は冷媒量・膨張弁の調整が必要です。
+        </div>
+      </div>
+    </div>
+
+    <!-- ② 双方向コンバーター -->
+    <div class="card">
+      <div class="card-title">双方向コンバーター</div>
+
+      <div class="conv-ref-row">
+        <label>冷媒</label>
+        <select id="ptRefrigerant" onchange="updateConv(); renderPTTable();">
+          <option value="R404A">R404A</option>
+          <option value="R134a">R134a</option>
+        </select>
+      </div>
+
+      <div class="conv-twin">
+        <!-- 温度 → 圧力 -->
+        <div class="conv-col temp-to-pres">
+          <div class="conv-col-head">温度 → 圧力</div>
+          <div class="conv-col-body">
+            <label style="font-size:11px;color:var(--muted);margin-bottom:4px;">温度を入力（℃）</label>
+            <input type="number" id="convTempIn" placeholder="-20" step="1" min="-40" max="50"
+                   oninput="onConvTemp()" style="border-color:#93C5FD;" />
+            <div class="conv-result-box" id="convTempResult">
+              <div class="conv-result-empty">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 圧力 → 温度 -->
+        <div class="conv-col pres-to-temp">
+          <div class="conv-col-head">圧力 → 温度</div>
+          <div class="conv-col-body">
+            <label style="font-size:11px;color:var(--muted);margin-bottom:4px;">圧力を入力（MPa）</label>
+            <input type="number" id="convPresIn" placeholder="0.20" step="0.01" min="-0.1" max="5"
+                   oninput="onConvPres()" style="border-color:#FDBA74;" />
+            <div class="conv-result-box" id="convPresResult">
+              <div class="conv-result-empty">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;">
+        ※ ゲージ圧基準（大気圧 = 0）。飽和状態での値です。<br>
+        <span style="color:#7B1FA2;font-weight:700;">紫色の行</span>：R134a の真空運転ライン（−28℃ / −0.008 MPa 以下で負圧）
+      </div>
+    </div>
+
+    <!-- ③ 参照テーブル -->
+    <div class="card">
+      <div class="card-title">参照テーブル</div>
+      <div class="search-row">
+        <div>
+          <label style="font-size:12px;">温度で絞り込み</label>
+          <input type="number" id="ptSearchTemp" placeholder="例: -20" step="1"
+                 oninput="renderPTTable()" style="margin-bottom:0" />
+        </div>
+      </div>
+      <div style="overflow-x:auto;max-height:400px;overflow-y:auto;border-radius:8px;border:1px solid var(--border);">
+        <table class="pt-table" id="ptTable"></table>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">
+        ゲージ圧 ＝ 絶対圧 − 0.1013 MPa　|　🟡 ハイライトは検索温度
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<!-- ===== ツールチップ モーダル ===== -->
+<div class="tip-overlay hidden" id="tipOverlay" onclick="closeTipOnOverlay(event)">
+  <div class="tip-modal" id="tipModal">
+    <div class="tip-handle"></div>
+    <div class="tip-modal-title" id="tipTitle"></div>
+    <div id="tipBody"></div>
+    <button class="tip-close-btn" onclick="closeTip()">閉じる</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// PTチャートデータ（ゲージ圧 MPa、-40℃〜+50℃、2℃刻み）
+// R134a: NIST REFPROP 基準値（単調増加に修正済み）
+// R404A: メーカー公表値準拠
+// ============================================================
+const PT_DATA = {
+  R404A: [
+    [-40, -0.001], [-38,  0.013], [-36,  0.029], [-34,  0.046],
+    [-32,  0.063], [-30,  0.082], [-28,  0.102], [-26,  0.124],
+    [-24,  0.147], [-22,  0.172], [-20,  0.198], [-18,  0.226],
+    [-16,  0.256], [-14,  0.288], [-12,  0.321], [-10,  0.357],
+    [ -8,  0.395], [ -6,  0.434], [ -4,  0.476], [ -2,  0.520],
+    [  0,  0.566], [  2,  0.615], [  4,  0.666], [  6,  0.720],
+    [  8,  0.776], [ 10,  0.835], [ 12,  0.896], [ 14,  0.961],
+    [ 16,  1.028], [ 18,  1.099], [ 20,  1.172], [ 22,  1.248],
+    [ 24,  1.328], [ 26,  1.411], [ 28,  1.497], [ 30,  1.586],
+    [ 32,  1.679], [ 34,  1.775], [ 36,  1.875], [ 38,  1.979],
+    [ 40,  2.086], [ 42,  2.197], [ 44,  2.312], [ 46,  2.431],
+    [ 48,  2.554], [ 50,  2.681]
+  ],
+  R134a: [
+    [-40, -0.050], [-38, -0.044], [-36, -0.038], [-34, -0.032],
+    [-32, -0.025], [-30, -0.017], [-28, -0.008], [-26,  0.001],
+    [-24,  0.011], [-22,  0.022], [-20,  0.034], [-18,  0.047],
+    [-16,  0.062], [-14,  0.077], [-12,  0.094], [-10,  0.113],
+    [ -8,  0.133], [ -6,  0.155], [ -4,  0.179], [ -2,  0.204],
+    [  0,  0.231], [  2,  0.261], [  4,  0.292], [  6,  0.326],
+    [  8,  0.362], [ 10,  0.401], [ 12,  0.441], [ 14,  0.484],
+    [ 16,  0.530], [ 18,  0.579], [ 20,  0.631], [ 22,  0.686],
+    [ 24,  0.744], [ 26,  0.805], [ 28,  0.870], [ 30,  0.939],
+    [ 32,  1.011], [ 34,  1.087], [ 36,  1.166], [ 38,  1.249],
+    [ 40,  1.336], [ 42,  1.427], [ 44,  1.522], [ 46,  1.621],
+    [ 48,  1.724], [ 50,  1.831]
+  ]
+};
+
+// 温度 → ゲージ圧（線形補間）
+function getPressure(refrigerant, tempC) {
+  const data = PT_DATA[refrigerant];
+  if (!data) return null;
+  if (tempC <= data[0][0]) return data[0][1];
+  if (tempC >= data[data.length - 1][0]) return data[data.length - 1][1];
+  for (let i = 0; i < data.length - 1; i++) {
+    const [t0, p0] = data[i];
+    const [t1, p1] = data[i + 1];
+    if (tempC >= t0 && tempC <= t1) {
+      return p0 + (p1 - p0) * (tempC - t0) / (t1 - t0);
+    }
+  }
+  return null;
+}
+
+// ゲージ圧 → 飽和温度（逆引き・線形補間）
+function getTemp(refrigerant, gaugePres) {
+  const data = PT_DATA[refrigerant];
+  if (!data) return null;
+  if (gaugePres <= data[0][1]) return data[0][0];
+  if (gaugePres >= data[data.length - 1][1]) return data[data.length - 1][0];
+  for (let i = 0; i < data.length - 1; i++) {
+    const [t0, p0] = data[i];
+    const [t1, p1] = data[i + 1];
+    if (gaugePres >= p0 && gaugePres <= p1) {
+      return t0 + (t1 - t0) * (gaugePres - p0) / (p1 - p0);
+    }
+  }
+  return null;
+}
+
+// ============================================================
+// SH/SC ステータス判定
+// ============================================================
+function shStatus(sh) {
+  if (sh < 3)  return { cls: 'sh-alarm',  note: '⚠ 低すぎ：液バック（コンプレッサー損傷）のリスク', level: 'alarm' };
+  if (sh < 5)  return { cls: 'sh-warn',   note: '△ やや低め：膨張弁の開度・冷媒量を確認', level: 'warn' };
+  if (sh > 20) return { cls: 'sh-alarm',  note: '⚠ 高すぎ：冷媒不足または膨張弁の絞りすぎ', level: 'alarm' };
+  if (sh > 15) return { cls: 'sh-warn',   note: '△ やや高め：冷媒量・膨張弁の開度を確認', level: 'warn' };
+  return       { cls: 'sh-normal', note: '✅ 適正範囲（5〜15℃）', level: 'normal' };
+}
+
+function scStatus(sc) {
+  if (sc < 3)  return { cls: 'sh-alarm',  note: '⚠ 低すぎ：液管フラッシュガスの可能性（冷媒不足）', level: 'alarm' };
+  if (sc < 5)  return { cls: 'sh-warn',   note: '△ やや低め：冷媒量またはドライヤを確認', level: 'warn' };
+  if (sc > 15) return { cls: 'sh-alarm',  note: '⚠ 高すぎ：冷媒過充填の可能性', level: 'alarm' };
+  if (sc > 10) return { cls: 'sh-warn',   note: '△ やや高め：冷媒量の確認を推奨', level: 'warn' };
+  return       { cls: 'sh-normal', note: '✅ 適正範囲（5〜10℃）', level: 'normal' };
+}
+
+// ============================================================
+// 任意入力トグル
+// ============================================================
+function toggleOptional(btn) {
+  btn.classList.toggle('open');
+  document.getElementById('optionalBody').classList.toggle('open');
+}
+
+// ============================================================
+// 基本診断ロジック
+// ============================================================
+function runDiagnosis() {
+  const refrigerant  = document.getElementById('refrigerant').value;
+  const targetTemp   = parseFloat(document.getElementById('targetTemp').value);
+  const measuredPres = parseFloat(document.getElementById('measuredPressure').value);
+  const td           = parseInt(document.getElementById('tdValue').value);
+
+  // 任意入力
+  const highPresRaw   = document.getElementById('highPressure').value.trim();
+  const suctionRaw    = document.getElementById('suctionTemp').value.trim();
+  const liquidRaw     = document.getElementById('liquidTemp').value.trim();
+  const highPres      = highPresRaw  !== '' ? parseFloat(highPresRaw)  : NaN;
+  const suctionTempV  = suctionRaw   !== '' ? parseFloat(suctionRaw)   : NaN;
+  const liquidTempV   = liquidRaw    !== '' ? parseFloat(liquidRaw)    : NaN;
+
+  const hasHigh    = !isNaN(highPres);
+  const hasSuction = !isNaN(suctionTempV);
+  const hasLiquid  = !isNaN(liquidTempV);
+
+  if (isNaN(targetTemp) || isNaN(measuredPres)) {
+    alert('庫内温度と低圧側圧力を正しく入力してください。');
+    return;
+  }
+
+  // ── 低圧側診断 ──
+  const evapTemp  = targetTemp - td;
+  const lowerEvap = evapTemp - 2;
+  const upperEvap = evapTemp + 2;
+  const lowerPres = getPressure(refrigerant, lowerEvap);
+  const upperPres = getPressure(refrigerant, upperEvap);
+
+  const isVacuum = refrigerant === 'R134a' && evapTemp <= -26;
+  const margin   = 0.03;
+
+  let status, boxClass, statusText, detail;
+  if (measuredPres < lowerPres - margin) {
+    status     = 'low';
+    boxClass   = isVacuum ? 'vacuum' : 'low';
+    statusText = isVacuum ? '⚠️ 真空運転（負圧）検知' : '異常：低圧低下';
+    detail     = `実測圧力 <strong>${measuredPres.toFixed(2)} MPa</strong> が適正範囲
+                  <strong>${lowerPres.toFixed(2)}〜${upperPres.toFixed(2)} MPa</strong> を下回っています。<br>
+                  冷媒不足・詰まり・着霜などが疑われます。`;
+  } else if (measuredPres > upperPres + margin) {
+    status     = 'high';
+    boxClass   = 'high';
+    statusText = '異常：高圧上昇（低圧側）';
+    detail     = `実測圧力 <strong>${measuredPres.toFixed(2)} MPa</strong> が適正範囲
+                  <strong>${lowerPres.toFixed(2)}〜${upperPres.toFixed(2)} MPa</strong> を上回っています。`;
+  } else {
+    status     = 'normal';
+    boxClass   = 'normal';
+    statusText = '✅ 正常範囲';
+    detail     = `実測圧力 <strong>${measuredPres.toFixed(2)} MPa</strong> は適正範囲
+                  <strong>${lowerPres.toFixed(2)}〜${upperPres.toFixed(2)} MPa</strong> 内です。`;
+  }
+
+  document.getElementById('vacuumAlert').classList.toggle('hidden', !(isVacuum && status !== 'normal'));
+  const resultBox = document.getElementById('resultBox');
+  resultBox.className = `result-box ${boxClass}`;
+  document.getElementById('resultStatus').textContent = statusText;
+  document.getElementById('resultDetail').innerHTML   = detail;
+  document.getElementById('calcEvapTemp').textContent = evapTemp.toFixed(1);
+  document.getElementById('calcPressureRange').textContent = `${lowerPres.toFixed(2)} 〜 ${upperPres.toFixed(2)}`;
+
+  // ── 高圧側診断（任意） ──
+  let condTemp = null;
+  if (hasHigh) {
+    condTemp = getTemp(refrigerant, highPres);
+    const highSideSection = document.getElementById('highSideSection');
+    highSideSection.classList.remove('hidden');
+    document.getElementById('calcCondTemp').textContent  = condTemp !== null ? condTemp.toFixed(1) : '—';
+    document.getElementById('displayHighPres').textContent = highPres.toFixed(2);
+
+    // 高圧異常判定：凝縮温度が55℃超 = 過熱アラート
+    const hBox   = document.getElementById('highSideResultBox');
+    const hStat  = document.getElementById('highSideStatus');
+    const hDetail= document.getElementById('highSideDetail');
+    if (condTemp !== null && condTemp > 55) {
+      hBox.className = 'result-box high';
+      hStat.textContent = '異常：高圧側過熱';
+      hDetail.innerHTML = `凝縮温度 <strong>${condTemp.toFixed(1)}℃</strong> が上限（55℃）を超えています。<br>
+                           凝縮器の汚れ・目詰まりまたは外気温上昇が疑われます。`;
+    } else if (condTemp !== null && condTemp > 48) {
+      hBox.className = 'result-box low';
+      hStat.textContent = '注意：高圧側やや高め';
+      hDetail.innerHTML = `凝縮温度 <strong>${condTemp.toFixed(1)}℃</strong> が上限付近です。<br>
+                           凝縮器フィンの清掃を推奨します。`;
+    } else {
+      hBox.className = 'result-box normal';
+      hStat.textContent = '✅ 高圧側 正常範囲';
+      hDetail.innerHTML = condTemp !== null
+        ? `凝縮温度 <strong>${condTemp.toFixed(1)}℃</strong> は正常範囲内です。`
+        : '凝縮温度を算出できませんでした（圧力値を確認してください）。';
+    }
+  } else {
+    document.getElementById('highSideSection').classList.add('hidden');
+  }
+
+  // ── 過熱度 / 過冷却度 ──
+  let shVal = null, scVal = null;
+  const shscMetrics = document.getElementById('shscMetrics');
+  const shscAdvice  = document.getElementById('shscAdvice');
+  shscMetrics.innerHTML = '';
+  shscAdvice.innerHTML  = '';
+
+  if (hasSuction) {
+    const actualEvapTemp = getTemp(refrigerant, measuredPres);
+    if (actualEvapTemp !== null) {
+      shVal = suctionTempV - actualEvapTemp;
+      const s = shStatus(shVal);
+      shscMetrics.innerHTML += `
+        <div class="metric-box ${s.cls}">
+          <div class="metric-label">過熱度（SH）</div>
+          <div class="metric-value">${shVal.toFixed(1)}</div>
+          <div class="metric-unit">℃</div>
+          <div class="sh-note ${s.level === 'normal' ? '' : s.level}">${s.note}</div>
+        </div>`;
+    }
+  }
+
+  if (hasHigh && hasLiquid && condTemp !== null) {
+    scVal = condTemp - liquidTempV;
+    const s = scStatus(scVal);
+    shscMetrics.innerHTML += `
+      <div class="metric-box ${s.cls}">
+        <div class="metric-label">過冷却度（SC）</div>
+        <div class="metric-value">${scVal.toFixed(1)}</div>
+        <div class="metric-unit">℃</div>
+        <div class="sh-note ${s.level === 'normal' ? '' : s.level}">${s.note}</div>
+      </div>`;
+  }
+
+  const shscSection = document.getElementById('shscSection');
+  if (shscMetrics.innerHTML !== '') {
+    shscSection.classList.remove('hidden');
+    // SH/SC を考慮した追加アドバイス
+    if (shVal !== null && shVal < 3) {
+      shscAdvice.innerHTML += `<div class="alert-banner" style="margin-top:10px;">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>液バックアラート</strong><br>
+        <span style="font-size:12px;font-weight:400;">過熱度が極めて低い状態です。液冷媒がコンプレッサーに戻るとバルブ・シリンダーを損傷します。膨張弁の閉め方向調整または冷媒量の確認を至急行ってください。</span></div>
+      </div>`;
+    }
+  } else {
+    shscSection.classList.add('hidden');
+  }
+
+  // ── 省エネアドバイス ──
+  const adviceArea = document.getElementById('adviceArea');
+  adviceArea.innerHTML = '';
+  if (status === 'normal') {
+    if (measuredPres > upperPres - margin * 0.5) {
+      adviceArea.innerHTML = `<div class="advice-box">
+        💡 <strong>省エネアドバイス：</strong>低圧側は正常ですが上限付近です。
+        凝縮器フィンの定期清掃でCOP向上が期待できます。顧客への予防保全提案を検討してください。
+      </div>`;
+    }
+  }
+
+  // ── 電気系 ──
+  const powerTypeV   = document.getElementById('powerType').value;
+  const ratedCurRaw  = document.getElementById('ratedCurrent').value.trim();
+  const actualCurRaw = document.getElementById('actualCurrent').value.trim();
+  const compOutRaw   = document.getElementById('compOutput').value.trim();
+  const compOutUnit  = document.getElementById('compOutputUnit').value;
+  const opHoursRaw   = document.getElementById('operatingHours').value.trim();
+  const elecRateV    = parseFloat(document.getElementById('electricRate').value) || 30;
+
+  const ratedCur  = ratedCurRaw  !== '' ? parseFloat(ratedCurRaw)  : NaN;
+  const actualCur = actualCurRaw !== '' ? parseFloat(actualCurRaw) : NaN;
+  const compOutV  = compOutRaw   !== '' ? parseFloat(compOutRaw)   : NaN;
+  const opHours   = opHoursRaw   !== '' ? parseFloat(opHoursRaw)   : NaN;
+
+  const hasRated  = !isNaN(ratedCur)  && ratedCur  > 0;
+  const hasActual = !isNaN(actualCur) && actualCur > 0;
+  const hasComp   = !isNaN(compOutV)  && compOutV  > 0;
+  const hasHours  = !isNaN(opHours)   && opHours   > 0;
+
+  // 電圧係数（V × 力率 / 1000）
+  const pf = 0.85;
+  const voltFactor = powerTypeV === 'single100' ? 100
+                   : powerTypeV === 'three200'  ? 200 * Math.sqrt(3)
+                   :                              200; // single200
+
+  // 負荷率
+  const loadRatio = (hasRated && hasActual) ? (actualCur / ratedCur) * 100 : null;
+
+  // 推定消費電力 (kW)
+  let estimatedKW = null;
+  if (hasActual) {
+    estimatedKW = voltFactor * actualCur * pf / 1000;
+  } else if (hasComp) {
+    // 銘板出力から推定（モーター効率 0.88 で割り返し）
+    const kw = compOutUnit === 'HP' ? compOutV * 0.746 : compOutV;
+    estimatedKW = kw / 0.88;
+  }
+
+  // 電気料金
+  const dailyCost   = (estimatedKW !== null && hasHours) ? estimatedKW * opHours * elecRateV       : null;
+  const monthlyCost = dailyCost !== null                 ? dailyCost * 30                           : null;
+  const yearlyCost  = dailyCost !== null                 ? dailyCost * 365                          : null;
+
+  // 高圧/圧力ステータス（統合診断に渡す）
+  const highStatus = hasHigh
+    ? (condTemp > 55 ? 'high' : condTemp > 48 ? 'warn' : 'normal')
+    : null;
+
+  // 電気系セクションの描画
+  const hasAnyElectric = hasRated || hasActual || hasComp;
+  if (hasAnyElectric) {
+    document.getElementById('electricSection').classList.remove('hidden');
+    renderElectricalResults(loadRatio, estimatedKW, dailyCost, monthlyCost, yearlyCost,
+      elecRateV, status, highStatus);
+  } else {
+    document.getElementById('electricSection').classList.add('hidden');
+  }
+
+  // トラブルシューティングに診断結果を渡す
+  updateTroubleshootingContent(status, refrigerant, evapTemp, measuredPres,
+    getPressure(refrigerant, evapTemp), shVal, scVal, highStatus);
+
+  document.getElementById('resultArea').classList.remove('hidden');
+  document.getElementById('troubleBtn').style.display = status === 'normal' && highStatus !== 'high' ? 'none' : '';
+}
+
+// ============================================================
+// トラブルシューティングコンテンツ
+// ============================================================
+function checkItem(cause, body) {
+  return `<li onclick="toggleCheck(this)">
+    <input type="checkbox" onclick="event.stopPropagation();toggleCheck(this.parentElement)">
+    <div class="item-text">${cause}<div class="item-cause">${body}</div></div>
+  </li>`;
+}
+
+function updateTroubleshootingContent(status, refrigerant, evapTemp, measuredPres, targetPres, shVal, scVal, highStatus) {
+  const el = document.getElementById('troubleContent');
+
+  const isNormalAll = status === 'normal' && highStatus !== 'high';
+  if (isNormalAll) {
+    el.innerHTML = `<div class="card">
+      <div class="card-title">診断結果：正常</div>
+      <p style="color:var(--muted);font-size:14px;">現在の運転状態は正常範囲内です。<br>異常が検出された場合にチェックリストが表示されます。</p>
+    </div>`;
+    return;
+  }
+
+  let html = '';
+
+  // ── 低圧側異常チェックリスト ──
+  if (status === 'low') {
+    // SH が高い場合、冷媒不足を強調
+    const shHint = shVal !== null && shVal > 15
+      ? '<br><strong style="color:var(--danger)">※ 過熱度が高く（' + shVal.toFixed(1) + '℃）、冷媒不足の可能性が高い</strong>'
+      : '';
+    // SC が低い場合、フラッシュガスの可能性
+    const scHint = scVal !== null && scVal < 5
+      ? '<br><strong style="color:var(--danger)">※ 過冷却度が低く（' + scVal.toFixed(1) + '℃）、液管フラッシュガスの可能性あり</strong>'
+      : '';
+
+    html += `<div class="card">
+      <div class="card-title">低圧低下 — 原因の切り分け</div>
+      ${shHint || scHint ? `<div style="margin-bottom:12px;">${shHint}${scHint}</div>` : ''}
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">該当するチェック項目を選択してください。</p>
+      <ul class="checklist">
+        ${checkItem('サイトグラスに気泡がある',
+          '→ 推定原因：冷媒不足（ガス欠）<br>対応：リークテスト実施 → 適正量の冷媒チャージ')}
+        ${checkItem(`低圧が真空に近い（ゲージ圧 ≤ ${refrigerant==='R134a' ? '−0.008' : '0.00'} MPa）`,
+          '→ 推定原因：膨張弁・ドライヤの閉塞<br>対応：ドライヤ交換、膨張弁点検')}
+        ${checkItem('エバポレーターに厚い霜がついている',
+          '→ 推定原因：着霜による熱交換不良<br>対応：デフロスト（除霜）実施、デフロストヒーター点検')}
+        ${checkItem('エバポレーターのファンが止まっている',
+          '→ 推定原因：ファン故障・モーター焼損<br>対応：ファンモーター交換')}
+      </ul>
+    </div>`;
+  }
+
+  // ── 高圧側異常チェックリスト ──
+  const showHighList = status === 'high' || highStatus === 'high' || highStatus === 'warn';
+  if (showHighList) {
+    // SC が高い場合、冷媒過充填を強調
+    const scOverHint = scVal !== null && scVal > 15
+      ? '<br><strong style="color:var(--danger)">※ 過冷却度が高く（' + scVal.toFixed(1) + '℃）、冷媒過充填の可能性が高い</strong>'
+      : '';
+
+    html += `<div class="card">
+      <div class="card-title">高圧上昇 — 原因の切り分け</div>
+      ${scOverHint ? `<div style="margin-bottom:12px;">${scOverHint}</div>` : ''}
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">該当するチェック項目を選択してください。</p>
+      <ul class="checklist">
+        ${checkItem('屋外機・凝縮器フィンに油汚れや埃の詰まりがある',
+          '→ 推定原因：凝縮器の熱交換不良<br>対応：フィン清掃（洗浄剤使用）、清掃頻度の見直し')}
+        ${checkItem('最近ガスチャージを行った',
+          '→ 推定原因：冷媒過充填<br>対応：適正量まで冷媒回収・再チャージ')}
+        ${checkItem('設置場所の気温が異常に高い、または換気不良',
+          '→ 推定原因：外気温・設置環境による圧力上昇<br>対応：換気改善、遮熱シェード設置の提案')}
+        ${checkItem('コンデンサーファンが止まっている',
+          '→ 推定原因：冷却ファン故障<br>対応：ファンモーター交換')}
+      </ul>
+    </div>`;
+  }
+
+  // ── SH/SC 起因のアドバイス ──
+  if (shVal !== null && shVal < 3) {
+    html += `<div class="card">
+      <div class="card-title" style="color:var(--danger);">液バックリスク（過熱度異常低下）</div>
+      <p style="font-size:14px;">過熱度 <strong>${shVal.toFixed(1)}℃</strong> — 液冷媒がコンプレッサーに戻るリスクがあります。</p>
+      <ul class="checklist" style="margin-top:12px;">
+        ${checkItem('膨張弁の開度が大きすぎる（または感温筒の取り付け不良）',
+          '→ 対応：膨張弁を絞る方向に調整、感温筒の断熱巻き確認')}
+        ${checkItem('冷媒が過充填されている',
+          '→ 対応：適正量まで回収・再チャージ')}
+      </ul>
+    </div>`;
+  }
+
+  el.innerHTML = html || `<div class="card"><p style="color:var(--muted);font-size:14px;text-align:center;padding:20px 0;">診断を実行してください。</p></div>`;
+}
+
+function toggleCheck(li) {
+  li.classList.toggle('checked');
+  const cb = li.querySelector('input[type="checkbox"]');
+  cb.checked = li.classList.contains('checked');
+}
+
+// ============================================================
+// タブ切り替え
+// ============================================================
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  const tabs = ['diag','trouble','pt'];
+  const navBtns = document.querySelectorAll('nav button');
+  navBtns[tabs.indexOf(name)].classList.add('active');
+
+  if (name === 'pt') renderPTTable();
+}
+
+// ============================================================
+// PTチャート：シナリオタブ切り替え
+// ============================================================
+function showScenario(idx) {
+  document.querySelectorAll('.scenario-tab').forEach((b, i) => {
+    b.classList.toggle('active', i === idx);
+  });
+  document.querySelectorAll('.scenario-panel').forEach((p, i) => {
+    p.classList.toggle('active', i === idx);
+  });
+}
+
+// ============================================================
+// PTチャート：双方向コンバーター
+// ============================================================
+function onConvTemp() {
+  const ref  = document.getElementById('ptRefrigerant').value;
+  const t    = parseFloat(document.getElementById('convTempIn').value);
+  const box  = document.getElementById('convTempResult');
+  if (isNaN(t)) {
+    box.innerHTML = '<div class="conv-result-empty">—</div>';
+    return;
+  }
+  const p   = getPressure(ref, t);
+  const kgf = (p * 10.197);
+  const pSign = p >= 0 ? '+' : '';
+  box.innerHTML = `
+    <div class="conv-result-main">${pSign}${p.toFixed(3)} <span style="font-size:12px;font-weight:400;">MPa</span></div>
+    <div class="conv-result-sub">${pSign}${kgf.toFixed(3)} kgf/cm²</div>`;
+}
+
+function onConvPres() {
+  const ref  = document.getElementById('ptRefrigerant').value;
+  const p    = parseFloat(document.getElementById('convPresIn').value);
+  const box  = document.getElementById('convPresResult');
+  if (isNaN(p)) {
+    box.innerHTML = '<div class="conv-result-empty">—</div>';
+    return;
+  }
+  const t = getTemp(ref, p);
+  const isVacuum = ref === 'R134a' && p <= -0.008;
+  const vacNote  = isVacuum
+    ? `<div style="font-size:11px;color:#7B1FA2;font-weight:700;margin-top:4px;">⚠ 真空運転ライン</div>`
+    : '';
+  box.innerHTML = `
+    <div class="conv-result-main">${t !== null ? t.toFixed(1) : '—'} <span style="font-size:12px;font-weight:400;">℃</span></div>
+    ${vacNote}`;
+}
+
+function updateConv() {
+  onConvTemp();
+  onConvPres();
+}
+
+// ============================================================
+// PTチャートテーブル描画
+// ============================================================
+function renderPTTable() {
+  const ref        = document.getElementById('ptRefrigerant').value;
+  const data       = PT_DATA[ref];
+  const searchTemp = parseFloat(document.getElementById('ptSearchTemp').value);
+
+  let html = `<thead><tr>
+    <th>温度 (℃)</th>
+    <th>ゲージ圧 (MPa)</th>
+    <th>kgf/cm²</th>
+  </tr></thead><tbody>`;
+
+  for (const [t, p] of data) {
+    const isVacuumRow  = ref === 'R134a' && p <= -0.008;
+    const isHighlight  = !isNaN(searchTemp) && Math.abs(t - searchTemp) < 1.5;
+    const kgf          = p * 10.197;
+    const pStr         = (p >= 0 ? '+' : '') + p.toFixed(3);
+    const kgfStr       = (kgf >= 0 ? '+' : '') + kgf.toFixed(3);
+
+    html += `<tr class="${isHighlight ? 'highlight' : ''}">
+      <td>${t}</td>
+      <td class="${isVacuumRow ? 'vacuum-row' : ''}">${pStr}</td>
+      <td class="${isVacuumRow ? 'vacuum-row' : ''}">${kgfStr}</td>
+    </tr>`;
+  }
+  html += '</tbody>';
+  document.getElementById('ptTable').innerHTML = html;
+
+  // 検索温度に近い行までスクロール
+  if (!isNaN(searchTemp)) {
+    const rows = document.querySelectorAll('#ptTable tbody tr');
+    rows.forEach(row => {
+      if (row.classList.contains('highlight')) {
+        row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    });
+  }
+}
+
+// 初期描画
+renderPTTable();
+
+// ============================================================
+// 電気系 レンダリング
+// ============================================================
+function loadBarClass(ratio) {
+  if (ratio > 100) return 'alarm';
+  if (ratio > 90)  return 'warn';
+  return 'normal';
+}
+
+function renderElectricalResults(loadRatio, estimatedKW, dailyCost, monthlyCost, yearlyCost,
+                                  elecRate, lowStatus, highStatus) {
+  // ── 負荷率バー ──
+  const loadArea = document.getElementById('loadRatioArea');
+  if (loadRatio !== null) {
+    const cls   = loadBarClass(loadRatio);
+    const w     = Math.min(loadRatio, 130) / 130 * 100; // 130%で満杯
+    const label = loadRatio > 110 ? `⚠ 過負荷：コンプレッサー焼損リスク。至急点検してください`
+                : loadRatio > 100 ? `△ やや過負荷：凝縮器清掃・冷媒量の確認を推奨`
+                : loadRatio >= 80 ? `✅ 適正範囲（80〜100%）`
+                : loadRatio >= 70 ? `△ やや低負荷：短絡サイクルまたは負荷軽減の可能性`
+                :                   `⚠ 低負荷：冷媒不足または膨張弁の不具合の可能性`;
+    const noteClass = loadRatio > 100 || loadRatio < 70 ? (loadRatio > 110 || loadRatio < 70 ? 'alarm' : 'warn') : '';
+    loadArea.innerHTML = `
+      <div class="metric-box ${cls === 'alarm' ? 'sh-alarm' : cls === 'warn' ? 'sh-warn' : 'sh-normal'}"
+           style="margin-bottom:12px;text-align:left;padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+          <span class="metric-label">負荷率（実測電流 ÷ 定格電流）</span>
+          <span style="font-size:24px;font-weight:800;">${loadRatio.toFixed(1)}<span style="font-size:13px;font-weight:400;"> %</span></span>
+        </div>
+        <div class="load-bar-wrap">
+          <div class="load-bar-fill ${cls}" style="width:${w.toFixed(1)}%"></div>
+        </div>
+        <div class="load-bar-ticks"><span>0%</span><span>65%</span><span>100%</span><span style="color:${cls==='alarm'?'var(--danger)':'var(--muted)'}">130%</span></div>
+        <div class="sh-note ${noteClass}">${label}</div>
+      </div>`;
+  } else {
+    loadArea.innerHTML = '';
+  }
+
+  // ── 消費電力 & 電気料金 ──
+  const costAreaEl = document.getElementById('costArea');
+  if (estimatedKW !== null) {
+    let html = `<div class="metrics" style="margin-bottom:10px;">
+      <div class="metric-box">
+        <div class="metric-label">推定消費電力</div>
+        <div class="metric-value">${estimatedKW.toFixed(2)}</div>
+        <div class="metric-unit">kW</div>
+      </div>`;
+
+    if (dailyCost !== null) {
+      html += `
+      <div class="metric-box cost-box">
+        <div class="metric-label">参考電気料金（1日）</div>
+        <div class="metric-value">${Math.round(dailyCost).toLocaleString()}</div>
+        <div class="metric-unit">円/日</div>
+      </div>`;
+    }
+    html += `</div>`;
+
+    if (dailyCost !== null) {
+      html += `<div class="metrics" style="margin-bottom:10px;">
+        <div class="metric-box cost-box">
+          <div class="metric-label">参考電気料金（1ヶ月）</div>
+          <div class="metric-value" style="font-size:20px;">${Math.round(monthlyCost).toLocaleString()}</div>
+          <div class="metric-unit">円/月（30日）</div>
+        </div>
+        <div class="metric-box cost-box">
+          <div class="metric-label">参考電気料金（年間）</div>
+          <div class="metric-value" style="font-size:20px;">${(yearlyCost / 10000).toFixed(1)}</div>
+          <div class="metric-unit">万円/年</div>
+        </div>
+      </div>
+      <div class="unit-label" style="margin-bottom:12px;">
+        ※ 力率0.85として計算。実際の料金は契約形態・時間帯割引等により異なります。
+      </div>`;
+
+      // 省エネ試算（高圧異常 or 過負荷時）
+      const isHighLoad = loadRatio !== null && loadRatio > 100;
+      const isHighPres = highStatus === 'high' || highStatus === 'warn';
+      if (isHighLoad || isHighPres) {
+        const saving = 0.15; // 清掃後の削減率（推定15%）
+        const savedKW    = estimatedKW * saving;
+        const savedDaily = Math.round(dailyCost * saving);
+        const savedMonthly = Math.round(monthlyCost * saving);
+        const savedYearly  = Math.round(yearlyCost * saving / 10000 * 10) / 10;
+        html += `<div class="saving-box">
+          💡 <strong>フィン清掃による省エネ試算</strong><br>
+          凝縮器・蒸発器の清掃を実施した場合、電力消費が約15%改善すると推定されます。<br>
+          <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div style="background:white;border-radius:8px;padding:10px;text-align:center;">
+              <div style="font-size:10px;color:var(--muted);">削減見込み（月）</div>
+              <div style="font-size:18px;font-weight:800;color:var(--primary);">${savedMonthly.toLocaleString()}円</div>
+            </div>
+            <div style="background:white;border-radius:8px;padding:10px;text-align:center;">
+              <div style="font-size:10px;color:var(--muted);">削減見込み（年）</div>
+              <div style="font-size:18px;font-weight:800;color:var(--primary);">${savedYearly}万円</div>
+            </div>
+          </div>
+          <div style="margin-top:8px;font-size:12px;color:var(--muted);">
+            ※ 推定値。清掃前後の実測値で確認してください。
+          </div>
+        </div>`;
+      }
+    }
+    costAreaEl.innerHTML = html;
+  } else {
+    costAreaEl.innerHTML = '';
+  }
+
+  // ── 統合診断 ──
+  renderIntegratedDiagnosis(loadRatio, estimatedKW, lowStatus, highStatus);
+}
+
+function renderIntegratedDiagnosis(loadRatio, estimatedKW, lowStatus, highStatus) {
+  const el = document.getElementById('integratedArea');
+  if (loadRatio === null) { el.innerHTML = ''; return; }
+
+  let level = 'ok', title = '', body = '';
+
+  if (loadRatio > 110) {
+    level = 'alert';
+    title = '🚨 過負荷：コンプレッサー保護のため即時点検が必要';
+    body  = `実測電流が定格の<strong>${loadRatio.toFixed(0)}%</strong>を超えています。このまま運転を続けるとコンプレッサーの焼損につながります。`;
+    if (highStatus === 'high') body += '<br>高圧異常も同時に検知 → 凝縮器清掃が最優先課題です。';
+    if (lowStatus  === 'low')  body += '<br>低圧低下も同時に検知 → 冷媒不足・詰まりの可能性があります。';
+
+  } else if (loadRatio > 100 && (highStatus === 'high' || highStatus === 'warn')) {
+    level = 'alert';
+    title = '⚠ 電流高め ＋ 高圧異常：凝縮器の汚れが濃厚';
+    body  = `電流・圧力の<strong>両方が高い状態</strong>は、凝縮器（コンデンサー）の熱交換不良が原因であることがほぼ確実です。`
+          + `フィン清掃を実施することで電力消費の削減と機器寿命の延長が見込めます。`;
+    if (estimatedKW !== null) body += `<br>清掃後の消費電力は約<strong>${(estimatedKW * 0.85).toFixed(2)}kW</strong>まで改善が期待できます（推定）。`;
+
+  } else if (loadRatio > 100) {
+    level = 'caution';
+    title = '△ 電流やや高め';
+    body  = highStatus === 'high' ? '高圧異常も検知されています。凝縮器清掃を優先してください。'
+                                  : '凝縮器フィンの清掃、または冷媒量の確認を推奨します。';
+
+  } else if (loadRatio < 70 && lowStatus === 'low') {
+    level = 'caution';
+    title = '△ 電流低め ＋ 低圧低下：冷媒不足の可能性';
+    body  = `電流・圧力ともに低い状態は、<strong>冷媒不足（ガス欠）</strong>または膨張弁の閉塞が原因として有力です。`
+          + `サイトグラスで気泡の有無を確認し、リークテストを実施してください。`;
+
+  } else if (loadRatio < 70) {
+    level = 'caution';
+    title = '△ 電流低め：低負荷または短絡サイクルの可能性';
+    body  = `実測電流が定格より大幅に低い状態です。短絡サイクル（頻繁なオン・オフ）や負荷の減少が考えられます。`
+          + `運転パターンを確認し、必要に応じてサーモスタットの設定を見直してください。`;
+
+  } else if (lowStatus === 'normal' && (highStatus === 'normal' || highStatus === null)) {
+    level = 'ok';
+    title = '✅ 統合診断：正常な運転状態';
+    body  = `電流・圧力ともに適正範囲内です。`;
+    if (estimatedKW !== null) body += `<br>現在の消費電力は約<strong>${estimatedKW.toFixed(2)}kW</strong>と推定されます。`;
+  } else {
+    level = 'ok';
+    title = '✅ 電気系：正常範囲';
+    body  = '負荷率は適正範囲内です。';
+  }
+
+  el.innerHTML = `<div class="integrated-box ${level}">
+    <div style="font-weight:800;font-size:15px;margin-bottom:6px;">${title}</div>
+    <div style="font-size:13px;line-height:1.75;">${body}</div>
+  </div>`;
+}
+
+// ============================================================
+// ツールチップ データ & 関数
+// ============================================================
+const TIPS = {
+  equipType: {
+    title: '機器種別の選び方',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 各機器の特徴</div>
+        <p>点検する機器の種類を選んでください。機器によって設定温度の目安が異なります。</p>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">🌡 温度の目安</div>
+        <div class="tip-spot">
+          <span class="tip-tag blue">業務用冷蔵庫</span> 0〜5℃<br>
+          <span class="tip-tag blue">業務用冷凍庫</span> −18〜−25℃<br>
+          <span class="tip-tag blue">冷蔵ショーケース</span> 3〜8℃<br>
+          <span class="tip-tag blue">冷凍ショーケース</span> −15〜−20℃<br>
+          <span class="tip-tag blue">製氷機</span> −8〜−15℃（製氷部）
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">💡 ポイント</div>
+        <p>現バージョンでは機器種別は記録用の情報です。圧力計算には庫内温度と冷媒が使われます。</p>
+      </div>`
+  },
+
+  refrigerant: {
+    title: '冷媒（れいばい）とは？',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 冷媒の役割</div>
+        <p>冷媒は冷凍サイクルの中を循環し、庫内の熱を外へ運び出す作動流体です。<br>
+        冷媒の種類が違うと<strong>同じ温度でも圧力が全く異なる</strong>ため、必ず正確に選択してください。</p>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">🔍 冷媒の確認方法</div>
+        <div class="tip-spot">
+          機器の銘板（本体側面や背面に貼られたシール）に記載されています。<br>
+          例：<strong>「Refrigerant: R404A」「冷媒: R134a」</strong>
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">🌡 各冷媒の主な用途</div>
+        <div class="tip-spot">
+          <span class="tip-tag green">R404A</span> 業務用冷凍・冷蔵庫（低温）<br>
+          <span class="tip-tag green">R134a</span> 冷蔵庫・冷蔵ショーケース（中温）
+        </div>
+      </div>
+      <div class="tip-warn">
+        ⚠️ <strong>冷媒を間違えると圧力判定がすべて狂います。</strong> 銘板で必ず確認してください。
+      </div>`
+  },
+
+  td: {
+    title: 'TD（伝熱温度差）とは？',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 TDの意味</div>
+        <p>TD（Temperature Difference）とは、庫内温度と冷媒の蒸発温度の差のことです。</p>
+        <div class="tip-spot">
+          <strong>例）</strong> 庫内温度 −20℃、TD = 7℃ の場合<br>
+          適正蒸発温度 = −20 − 7 = <strong>−27℃</strong>
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">💡 TDの選び方</div>
+        <div class="tip-spot">
+          <span class="tip-tag green">5℃</span> 新しい設備・清潔な蒸発器<br>
+          <span class="tip-tag blue">7℃</span> 一般的な設備（<strong>迷ったらこれ</strong>）<br>
+          <span class="tip-tag gray">10℃</span> 古い設備・着霜しやすい設備
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">📌 なぜTDが変わる？</div>
+        <p>蒸発器に霜や汚れが付くと熱交換効率が下がり、TDが大きくなります。
+        設備カルテに過去の適正TDが記録してあれば、その値を使いましょう。</p>
+      </div>`
+  },
+
+  targetTemp: {
+    title: '目標庫内温度の確認方法',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 目標庫内温度とは？</div>
+        <p>温度調節器（サーモスタット）に設定されている<strong>目標の庫内温度</strong>です。
+        実際に機器が維持しようとしている温度を入力してください。</p>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">📍 確認する場所</div>
+        <div class="tip-spot">
+          ① 庫内や扉付近の<strong>デジタル温度表示パネル</strong>（設定値を表示しているもの）<br>
+          ② 機器背面・上部の<strong>サーモスタットダイヤル</strong><br>
+          ③ 管理者・店舗スタッフへの聞き取り
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">💡 目安温度</div>
+        <div class="tip-spot">
+          <span class="tip-tag blue">業務用冷蔵庫</span> 0〜5℃<br>
+          <span class="tip-tag blue">業務用冷凍庫</span> −18〜−25℃<br>
+          <span class="tip-tag blue">冷凍ショーケース</span> −15〜−20℃
+        </div>
+      </div>
+      <div class="tip-warn">
+        ⚠️ 現在の実温度ではなく、<strong>設定温度（目標値）</strong>を入力してください。
+      </div>`
+  },
+
+  lowPres: {
+    title: '低圧側ゲージ圧の測定方法',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 低圧側とは？</div>
+        <p>コンプレッサーに<strong>吸い込まれる側</strong>の冷媒圧力です。
+        蒸発器（エバポレーター）内の冷媒圧力に相当します。<br>
+        庫内温度が低いほど、この圧力も低くなります。</p>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">📍 測定方法</div>
+        <div class="tip-spot">
+          ① マニホールドゲージの<strong>青いホース（Lo側）</strong>を取り出す<br>
+          ② コンプレッサー吸入側の<strong>サービスポート（低圧バルブ）</strong>に接続<br>
+          ③ <strong>青いゲージ（左側）</strong>の数値を読む<br>
+          ④ 単位が「MPa」のスケールで読む（kgf/cm² の場合は変換が必要）
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">💡 ゲージ圧とは？</div>
+        <p>大気圧（約0.1013 MPa）を<strong>0として測った圧力</strong>です。<br>
+        マイナスの値（例：−0.01 MPa）は大気圧以下（真空に近い状態）を意味します。</p>
+      </div>
+      <div class="tip-warn">
+        ⚠️ 接続はコンプレッサー停止後でも運転中でも可能ですが、
+        必ずゴーグル・手袋を着用し、冷媒が顔や手に触れないよう注意してください。
+      </div>`
+  },
+
+  highPres: {
+    title: '高圧側ゲージ圧の測定方法',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 高圧側とは？</div>
+        <p>コンプレッサーから<strong>吐き出された後</strong>の冷媒圧力です。
+        凝縮器（コンデンサー）内の冷媒圧力に相当し、低圧より大幅に高い値になります。</p>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">📍 測定方法</div>
+        <div class="tip-spot">
+          ① マニホールドゲージの<strong>赤いホース（Hi側）</strong>を取り出す<br>
+          ② コンプレッサー吐出側の<strong>サービスポート（高圧バルブ）</strong>に接続<br>
+          ③ <strong>赤いゲージ（右側）</strong>の数値を読む<br>
+          ④ 単位が「MPa」のスケールで読む
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">💡 入力するとわかること</div>
+        <div class="tip-spot">
+          <span class="tip-tag green">凝縮温度</span> を自動計算（高圧からPTチャートで逆算）<br>
+          <span class="tip-tag green">過冷却度（SC）</span> を液管温度と合わせて計算<br>
+          <span class="tip-tag green">高圧異常</span> の有無を判定
+        </div>
+      </div>
+      <div class="tip-warn">
+        ⚠️ 高圧側は特に圧力が高く危険です。接続・取り外し時は必ず保護具を着用してください。
+      </div>`
+  },
+
+  suctionTemp: {
+    title: '吸入管温度の測定方法',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 吸入管とは？</div>
+        <p>蒸発器（エバポレーター）からコンプレッサーへ向かう<strong>太い配管（吸入側）</strong>です。
+        この配管の表面温度を測定することで<strong>過熱度（SH）</strong>が計算できます。</p>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">📍 測定方法</div>
+        <div class="tip-spot">
+          ① <strong>クランプ式温度計（はさむタイプ）</strong>を準備<br>
+          ② コンプレッサー吸入口の近くの<strong>太い配管</strong>に温度計を装着<br>
+          ③ 断熱テープや布で温度計センサーを覆い、外気温の影響を防ぐ<br>
+          ④ 安定するまで1〜2分待ってから読む
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">💡 過熱度（SH）とは？</div>
+        <p>吸入管温度から低圧の飽和温度を引いた値です。<br>
+        冷媒が完全にガスになっているかを確認する重要な指標です。</p>
+        <div class="tip-spot">
+          <span class="tip-tag green">5〜15℃</span> 正常<br>
+          <span class="tip-tag red">3℃未満</span> 液バックの危険（コンプレッサー損傷）<br>
+          <span class="tip-tag gray">15℃超</span> 冷媒不足または膨張弁の絞りすぎ
+        </div>
+      </div>`
+  },
+
+  powerType: {
+    title: '電源種別の確認方法',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 電源種別とは？</div>
+        <p>機器に供給されている電源の種類と電圧です。消費電力の計算に使います。</p>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">🔍 確認方法</div>
+        <div class="tip-spot">
+          機器の<strong>銘板（本体に貼られたシール）</strong>に記載されています。<br>
+          例：<strong>「AC200V 単相」「3φ 200V」「100V」</strong>
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">🌡 種別の目安</div>
+        <div class="tip-spot">
+          <span class="tip-tag gray">単相100V</span> 家庭用・小型機器<br>
+          <span class="tip-tag blue">単相200V</span> 業務用機器（最も多い）<br>
+          <span class="tip-tag green">三相200V</span> 大型業務用機器・工場
+        </div>
+      </div>`
+  },
+
+  ratedCurrent: {
+    title: '定格電流の確認方法',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 定格電流とは？</div>
+        <p>メーカーが設計した<strong>正常運転時の電流値の上限</strong>です。
+        実測電流と比較することで、過負荷・低負荷を判定できます。</p>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">📍 確認する場所</div>
+        <div class="tip-spot">
+          機器本体の<strong>銘板（ネームプレート）</strong>に記載されています。<br>
+          表記例：<strong>「定格電流 8.5A」「RLA: 8.5A」「FLA: 8.5A」</strong><br>
+          ※ RLA = Rated Load Ampere（定格電流）
+        </div>
+      </div>
+      <div class="tip-warn">
+        ⚠️ コンプレッサーの電流を使用してください。ファン・ヒーターなどを含む<strong>「最大電流（MCA）」は定格電流ではありません</strong>。
+      </div>`
+  },
+
+  actualCurrent: {
+    title: '実測電流の測定方法',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 実測電流とは？</div>
+        <p>現在の運転中にコンプレッサーが実際に消費している電流です。
+        定格電流と比較して機器の負荷状態を判断します。</p>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">📍 測定方法</div>
+        <div class="tip-spot">
+          ① <strong>クランプメーター（電流クランプ）</strong>を準備<br>
+          ② コンプレッサーへの電源ケーブル（1本だけ）をクランプで挟む<br>
+          ③ コンプレッサー<strong>運転中</strong>に電流値を読む<br>
+          ④ 単相の場合：1本の線の電流値<br>
+          　 三相の場合：1相分の電流値
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">💡 判定の目安</div>
+        <div class="tip-spot">
+          <span class="tip-tag green">80〜100%</span> 定格の範囲内 → 正常<br>
+          <span class="tip-tag gray">100%超</span> 過負荷の可能性<br>
+          <span class="tip-tag gray">70%未満</span> 低負荷・冷媒不足の可能性
+        </div>
+      </div>
+      <div class="tip-warn">
+        ⚠️ 電源ケーブルを切断・加工せずに測定できます。ただし感電防止のため、
+        活線（通電中の電線）には直接触れないでください。
+      </div>`
+  },
+
+  compOutput: {
+    title: '圧縮機定格出力の確認方法',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 圧縮機定格出力とは？</div>
+        <p>コンプレッサーの<strong>機械的な出力（馬力）または消費電力</strong>です。
+        実測電流が不明な場合の消費電力推定に使用します。</p>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">📍 確認する場所</div>
+        <div class="tip-spot">
+          機器の銘板に記載されています。<br>
+          表記例：<strong>「出力：1.5kW」「1/2 HP」「Output: 750W」</strong>
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">💡 HP（馬力）の換算</div>
+        <div class="tip-spot">
+          1 HP（馬力）≈ <strong>0.746 kW</strong><br>
+          例：2 HP ≈ 1.49 kW
+        </div>
+      </div>
+      <div class="tip-warn">
+        ⚠️ 銘板の値は設計値のため、実際の消費電力とは異なります。
+        正確な測定には実測電流の入力をお勧めします。
+      </div>`
+  },
+
+  operatingHours: {
+    title: '1日あたりの運転時間',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 なぜ運転時間が必要？</div>
+        <p>電気料金 = 消費電力(kW) × 運転時間(h) × 電気料金単価(円/kWh)<br>
+        運転時間を入力することで、1日・月間・年間の参考電気料金を表示します。</p>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">💡 運転時間の目安</div>
+        <div class="tip-spot">
+          <span class="tip-tag blue">業務用冷凍・冷蔵庫</span> 16〜20時間/日<br>
+          <span class="tip-tag blue">コンビニ・スーパーのショーケース</span> 24時間/日<br>
+          <span class="tip-tag blue">製氷機（営業時間帯のみ）</span> 10〜14時間/日
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">📌 注意</div>
+        <p>コンプレッサーはサーモスタットのオン・オフで断続運転します。
+        「24時間運転」でも実際の圧縮機稼働は70〜80%程度のことが多いです。</p>
+      </div>`
+  },
+
+  electricRate: {
+    title: '電気料金単価について',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 デフォルト値（30円/kWh）について</div>
+        <p>日本の業務用電気料金の目安として30円/kWhをデフォルトにしています。
+        実際の料金は電力会社・契約プランにより異なります。</p>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">💡 単価の目安（2025年）</div>
+        <div class="tip-spot">
+          <span class="tip-tag gray">低圧電力（業務用）</span> 25〜35円/kWh<br>
+          <span class="tip-tag gray">高圧電力（大型施設）</span> 18〜25円/kWh<br>
+          <span class="tip-tag gray">従量電灯（家庭・小口）</span> 28〜40円/kWh
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">📍 正確な単価の確認方法</div>
+        <p>店舗・施設の電気料金明細書（検針票）に記載されている<strong>「電力量料金単価」</strong>を参照してください。</p>
+      </div>`
+  },
+
+  liquidTemp: {
+    title: '液管温度の測定方法',
+    body: `
+      <div class="tip-section">
+        <div class="tip-section-head">📖 液管とは？</div>
+        <p>凝縮器（コンデンサー）から膨張弁へ向かう<strong>細い配管（液冷媒が流れる側）</strong>です。
+        この温度を高圧から算出した凝縮温度と比較して<strong>過冷却度（SC）</strong>を求めます。</p>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">📍 測定方法</div>
+        <div class="tip-spot">
+          ① <strong>クランプ式温度計</strong>を準備<br>
+          ② 凝縮器出口〜膨張弁の間の<strong>細い配管（液管）</strong>に温度計を装着<br>
+          ③ 直射日光や外気温の影響を避けるため断熱テープで覆う<br>
+          ④ 安定するまで1〜2分待ってから読む
+        </div>
+      </div>
+      <div class="tip-section">
+        <div class="tip-section-head">💡 過冷却度（SC）とは？</div>
+        <p>凝縮温度から液管温度を引いた値です。<br>
+        液冷媒が凝縮後にさらに冷やされている度合いを示します。</p>
+        <div class="tip-spot">
+          <span class="tip-tag green">5〜10℃</span> 正常<br>
+          <span class="tip-tag red">3℃未満</span> 液管フラッシュガスの可能性（冷媒不足）<br>
+          <span class="tip-tag gray">15℃超</span> 冷媒過充填の可能性
+        </div>
+      </div>
+      <div class="tip-warn">
+        ⚠️ 高圧側ゲージ圧も入力されている場合のみ、過冷却度が計算されます。
+      </div>`
+  }
+};
+
+function openTip(key) {
+  const tip = TIPS[key];
+  if (!tip) return;
+  document.getElementById('tipTitle').textContent = tip.title;
+  document.getElementById('tipBody').innerHTML = tip.body;
+  document.getElementById('tipOverlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeTip() {
+  document.getElementById('tipOverlay').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function closeTipOnOverlay(e) {
+  if (e.target === document.getElementById('tipOverlay')) closeTip();
+}
+
+// Escキーでも閉じる
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeTip(); });
+</script>
+</body>
+</html>
