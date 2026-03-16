@@ -71,6 +71,34 @@
       color: var(--primary);
       border-bottom-color: var(--primary);
     }
+    .pt-badge {
+      display: inline-block;
+      width: 7px; height: 7px;
+      background: #22C55E;
+      border-radius: 50%;
+      margin-left: 4px;
+      vertical-align: middle;
+      animation: pulse-badge 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse-badge {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.55; transform: scale(1.4); }
+    }
+    .btn-pt-link {
+      width: 100%;
+      padding: 13px;
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #0057A8, #0ea5e9);
+      color: white;
+      margin-top: 10px;
+      display: block;
+      text-align: center;
+    }
+    .btn-pt-link:active { opacity: 0.85; transform: scale(0.98); }
 
     main { padding: 16px; max-width: 680px; margin: 0 auto; }
 
@@ -743,7 +771,7 @@
 <nav>
   <button class="active" onclick="showTab('diag')">🔍 基本診断</button>
   <button onclick="showTab('trouble')">🛠 トラブル</button>
-  <button onclick="showTab('pt')">📊 PTチャート</button>
+  <button onclick="showTab('pt')">📊 PTチャート<span id="ptBadge" class="pt-badge hidden"></span></button>
 </nav>
 
 <main>
@@ -918,6 +946,10 @@
       </div>
 
       <div id="adviceArea"></div>
+
+      <button class="btn-pt-link hidden" id="ptChartBtn" onclick="showTab('pt')">
+        📊 PTチャートで確認する
+      </button>
 
       <button class="btn btn-secondary" onclick="showTab('trouble')" id="troubleBtn">
         🛠 トラブルシューティングへ
@@ -1148,6 +1180,8 @@
 </div>
 
 <script>
+let diagResult = null;   // 診断結果をPTチャートオーバーレイ用に保持
+
 // ============================================================
 // PTチャートデータ（ゲージ圧 MPa、-40℃〜+50℃、2℃刻み）
 // R134a: NIST REFPROP 基準値（単調増加に修正済み）
@@ -1468,6 +1502,21 @@ function runDiagnosis() {
 
   document.getElementById('resultArea').classList.remove('hidden');
   document.getElementById('troubleBtn').style.display = status === 'normal' && highStatus !== 'high' ? 'none' : '';
+
+  // ── 診断結果をPTチャート用に保存し、バッジ・ボタンを表示 ──
+  diagResult = {
+    refrigerant,
+    evapTemp,
+    lowerPres,
+    upperPres,
+    measuredPres,
+    status,
+    hasHigh,
+    highPres: hasHigh ? highPres : null,
+    condTemp: hasHigh ? condTemp : null
+  };
+  document.getElementById('ptBadge').classList.remove('hidden');
+  document.getElementById('ptChartBtn').classList.remove('hidden');
 }
 
 // ============================================================
@@ -1600,6 +1649,65 @@ const gtx = t => G.ml + (t - G.TMIN) / (G.TMAX - G.TMIN) * G.cw;
 const gty = p => G.mt + G.ch - (p - G.PMIN) / (G.PMAX - G.PMIN) * G.ch;
 const gxt = x => G.TMIN + (x - G.ml) / G.cw * (G.TMAX - G.TMIN);
 
+// 適正圧力帯バンドと目標蒸発温度線のオーバーレイ
+function diagBands(h) {
+  if (!diagResult) return h;
+  const { lowerPres, upperPres, evapTemp } = diagResult;
+  const y1 = gty(upperPres);
+  const y2 = gty(lowerPres);
+  // 緑の半透明バンド
+  h += `<rect x="${G.ml}" y="${y1.toFixed(1)}" width="${G.cw}" height="${(y2 - y1).toFixed(1)}" fill="#22C55E" opacity="0.13"/>`;
+  // 上下の破線境界
+  h += `<line x1="${G.ml}" y1="${y1.toFixed(1)}" x2="${G.ml + G.cw}" y2="${y1.toFixed(1)}" stroke="#22C55E" stroke-width="1.2" stroke-dasharray="5,3"/>`;
+  h += `<line x1="${G.ml}" y1="${y2.toFixed(1)}" x2="${G.ml + G.cw}" y2="${y2.toFixed(1)}" stroke="#22C55E" stroke-width="1.2" stroke-dasharray="5,3"/>`;
+  // 目標蒸発温度の縦破線
+  const xEvap = gtx(evapTemp);
+  h += `<line x1="${xEvap.toFixed(1)}" y1="${G.mt}" x2="${xEvap.toFixed(1)}" y2="${G.mt + G.ch}" stroke="#15803D" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.8"/>`;
+  // ラベル（線の右に添える、中段付近）
+  const lblY = G.mt + G.ch * 0.55;
+  h += `<text x="${(xEvap + 3).toFixed(1)}" y="${lblY.toFixed(1)}" font-size="7" fill="#15803D" font-weight="700">目標蒸発</text>`;
+  h += `<text x="${(xEvap + 3).toFixed(1)}" y="${(lblY + 9).toFixed(1)}" font-size="7" fill="#15803D">${evapTemp.toFixed(1)}℃</text>`;
+  // 「適正範囲」ラベル（バンド内）
+  const bandMidY = (y1 + y2) / 2;
+  h += `<text x="${(G.ml + G.cw - 4).toFixed(1)}" y="${bandMidY.toFixed(1)}" text-anchor="end" font-size="7" fill="#15803D" font-weight="700">適正範囲</text>`;
+  return h;
+}
+
+// 実測値ドット（低圧側、高圧側）のオーバーレイ
+function diagDots(h) {
+  if (!diagResult) return h;
+  const { refrigerant, measuredPres, status, hasHigh, highPres, condTemp } = diagResult;
+  const color = status === 'normal' ? '#22C55E' : status === 'high' ? '#F97316' : '#EF4444';
+
+  // 低圧側：冷媒曲線上の実測点
+  const measuredEvapTemp = getTemp(refrigerant, measuredPres);
+  if (measuredEvapTemp !== null) {
+    const cx = gtx(measuredEvapTemp);
+    const cy = gty(measuredPres);
+    h += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="9" fill="${color}" opacity="0.2"/>`;
+    h += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5.5" fill="${color}" stroke="white" stroke-width="2"/>`;
+    const onRight = cx > G.ml + G.cw * 0.65;
+    const lx = onRight ? cx - 7 : cx + 8;
+    const anchor = onRight ? 'end' : 'start';
+    const pSign = measuredPres >= 0 ? '+' : '';
+    h += `<text x="${lx.toFixed(1)}" y="${(cy - 9).toFixed(1)}" text-anchor="${anchor}" font-size="8" fill="${color}" font-weight="800">実測 ${pSign}${measuredPres.toFixed(3)} MPa</text>`;
+  }
+
+  // 高圧側：入力があれば凝縮点を表示
+  if (hasHigh && highPres !== null && condTemp !== null) {
+    const hcx = gtx(condTemp);
+    const hcy = gty(highPres);
+    h += `<circle cx="${hcx.toFixed(1)}" cy="${hcy.toFixed(1)}" r="9" fill="#F97316" opacity="0.2"/>`;
+    h += `<circle cx="${hcx.toFixed(1)}" cy="${hcy.toFixed(1)}" r="5.5" fill="#F97316" stroke="white" stroke-width="2"/>`;
+    const onRight = hcx > G.ml + G.cw * 0.65;
+    const hlx = onRight ? hcx - 7 : hcx + 8;
+    const hanchor = onRight ? 'end' : 'start';
+    const hSign = highPres >= 0 ? '+' : '';
+    h += `<text x="${hlx.toFixed(1)}" y="${(hcy - 9).toFixed(1)}" text-anchor="${hanchor}" font-size="8" fill="#C2410C" font-weight="800">高圧 ${hSign}${highPres.toFixed(3)} MPa</text>`;
+  }
+  return h;
+}
+
 function renderPTGraph() {
   const svg = document.getElementById('ptGraphSvg');
   if (!svg) return;
@@ -1620,6 +1728,9 @@ function renderPTGraph() {
   const yBt = gty(G.PMIN);
   h += `<rect x="${ml}" y="${y0}" width="${cw}" height="${yBt - y0}" fill="#F3E8FF" opacity="0.5"/>`;
   h += `<text x="${gtx(-34)}" y="${y0 + 9}" font-size="7" fill="#7B1FA2" font-weight="700">真空（負圧）ゾーン</text>`;
+
+  // 診断：適正圧力帯バンド（グリッド線の下に描く）
+  h = diagBands(h);
 
   // 温度グリッド
   for (let t = -40; t <= 50; t += 10) {
@@ -1649,6 +1760,9 @@ function renderPTGraph() {
     const pts = PT_DATA[ref].map(([t, p]) => `${gtx(t).toFixed(1)},${gty(p).toFixed(1)}`).join(' ');
     h += `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
   });
+
+  // 診断：実測点ドット（曲線の上に描く）
+  h = diagDots(h);
 
   // クロスヘア（初期非表示）
   h += `<g id="ptCross" opacity="0">
